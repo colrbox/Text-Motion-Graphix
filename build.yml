@@ -1,0 +1,41 @@
+name: Build Caude-S2M.exe
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # lets you trigger it manually from GitHub UI
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Download FFmpeg (static Windows build)
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl.zip" -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_tmp
+          $ffmpeg = Get-ChildItem -Recurse -Filter "ffmpeg.exe" ffmpeg_tmp | Select-Object -First 1
+          Copy-Item $ffmpeg.FullName ffmpeg.exe
+        shell: powershell
+
+      - name: Build exe
+        run: |
+          pyinstaller --onefile --name Caude-S2M --add-binary "ffmpeg.exe;." srt2motion.py
+
+      - name: Upload exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Caude-S2M-Windows
+          path: dist/Caude-S2M.exe
+          retention-days: 30
